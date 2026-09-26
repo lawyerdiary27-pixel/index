@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 
-  
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import {
@@ -1081,16 +1081,45 @@ function toast(message){
 }
 
 function saveLocal(){
- localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+ try{
+  if(!Array.isArray(records)) records=[];
+  records.forEach(r=>{
+   if(!r || typeof r!=="object") return;
+   if(!r.recordId) r.recordId=r.timestamp||("mact-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,9));
+   if(!r.createdAt) r.createdAt=r.updatedAt||nowISO();
+   if(!r.updatedAt) r.updatedAt=r.createdAt;
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  return true;
+ }catch(e){
+  console.error("MACT local save failed:",e);
+  try{ toast("Local storage save failed. Export a backup before continuing."); }catch(_){}
+  return false;
+ }
 }
 
 function loadLocal(){
  try{
   const raw = localStorage.getItem(STORAGE_KEY);
-  records = raw ? JSON.parse(raw) : [];
-  if(!Array.isArray(records)) records = [];
+  const parsed = raw ? JSON.parse(raw) : [];
+  records = Array.isArray(parsed) ? parsed : [];
+  const seen=new Set();
+  let repaired=false;
+  records.forEach(r=>{
+   if(!r || typeof r!=="object") return;
+   if(!r.recordId || seen.has(String(r.recordId))){
+    r.recordId=r.timestamp||("mact-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,9));
+    repaired=true;
+   }
+   seen.add(String(r.recordId));
+   if(!r.createdAt) r.createdAt=r.updatedAt||nowISO();
+   if(!r.updatedAt) r.updatedAt=r.createdAt;
+  });
+  if(repaired) saveLocal();
  }catch(e){
+  console.error("MACT local data read failed:",e);
   records = [];
+  try{ toast("Saved data could not be read. Use Restore/Import backup if available."); }catch(_){}
  }
 }
 
@@ -2148,6 +2177,146 @@ function openPdf(id){
  const win = window.open();
  if(!win){ toast("Please allow popups to open PDF."); return; }
  win.document.write(`<!doctype html><html><head><title>${escapeHtml(r.judgmentPdfName || "Judgment PDF")}</title></head><body style="margin:0"><iframe src=" ${r.judgmentPdfUrl}" style="border:0;width:100vw;height:100vh"></iframe>
+
+
+<!-- MACT V14.4 STABILITY + PRODUCTIVITY PATCH -->
+<style id="mact-v144-stability-css">
+#m144Tools{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 12px}
+#m144Tools .btn{font-size:11px}
+#m144Health{display:none;margin:10px 0 0;padding:12px;border:1px solid #dbe5f0;border-radius:12px;background:#f8fbff}
+#m144Health.show{display:block}
+.m144-health-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.m144-h{padding:9px;border:1px solid #e1e8f0;border-radius:9px;background:#fff}.m144-h b{display:block;font-size:16px}.m144-h span{font-size:9px;color:#64748b}
+body.mact-dark #m144Health{background:#111b2e;border-color:#26334a}body.mact-dark .m144-h{background:#0f192a;border-color:#33425d}
+@media(max-width:700px){.m144-health-grid{grid-template-columns:1fr 1fr}}
+</style>
+<script id="mact-v144-stability-js">
+(function(){
+ "use strict";
+ const $=id=>document.getElementById(id);
+ const KEY="mact_unlimited_records";
+ const safe=(fn,f)=>{try{return fn()}catch(e){console.error("MACT V14.4:",e);return f}};
+ const active=()=>safe(()=>JSON.parse(localStorage.getItem(KEY)||"[]"),[]).filter(r=>r&&!r.deleted&&!r.deletedAt);
+ const all=()=>safe(()=>JSON.parse(localStorage.getItem(KEY)||"[]"),[]);
+ const stamp=()=>new Date().toISOString();
+ function download(name,text,type){
+   const a=document.createElement("a"),u=URL.createObjectURL(new Blob([text],{type:type||"application/json"}));
+   a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1200);
+ }
+ function snapshot(){
+   const payload={
+     format:"MACT Legal Portal Full Backup",
+     version:"V14.4-stability",
+     exportedAt:stamp(),
+     records:all(),
+     appState:{}
+   };
+   ["mact_custom_fields_v1","mact_form_sections_layout","mact_field_visibility_v1","mact_print_fields_v1","mact_audit_v1","mact_audit_log_v1","mact_advanced_state_v1","mact_dark_mode"].forEach(k=>{
+     const v=localStorage.getItem(k); if(v!==null) payload.appState[k]=v;
+   });
+   return payload;
+ }
+ function backup(){
+   const p=snapshot();
+   download("MACT_Legal_Portal_Full_Backup_"+new Date().toISOString().slice(0,10)+".json",JSON.stringify(p,null,2));
+   toast("Full backup downloaded successfully.");
+ }
+ function repair(){
+   const rs=all();const seen=new Set();let repaired=0,invalid=0;
+   rs.forEach(r=>{
+     if(!r||typeof r!=="object"){invalid++;return}
+     if(!r.recordId||seen.has(String(r.recordId))){
+       r.recordId=(r.timestamp||"mact")+"-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
+       repaired++;
+     }
+     seen.add(String(r.recordId));
+     if(!r.createdAt)r.createdAt=r.updatedAt||stamp();
+     if(!r.updatedAt)r.updatedAt=r.createdAt;
+     if(!Array.isArray(r.proceedings))r.proceedings=[];
+   });
+   localStorage.setItem(KEY,JSON.stringify(rs.filter(Boolean)));
+   if(typeof window.loadLocal==="function")window.loadLocal();
+   if(typeof window.renderAll==="function")window.renderAll();
+   if(typeof window.queueTrueAutoSync==="function")window.queueTrueAutoSync();
+   toast(repaired?("Data check repaired "+repaired+" record ID(s)."):("Data check complete — no duplicate IDs found."));
+   showHealth();
+ }
+ function showHealth(){
+   const rs=all(),act=rs.filter(r=>!r.deleted&&!r.deletedAt),seen=new Set(),dups=[];
+   rs.forEach(r=>{const id=String(r?.recordId||"");if(id&&seen.has(id))dups.push(id);if(id)seen.add(id)});
+   let docs=0, hearings=0, overdue=0; const today=new Date().toISOString().slice(0,10);
+   act.forEach(r=>{
+     docs+=(r.documents||r.docs||[]).length;
+     (r.proceedings||[]).forEach(p=>{if(p.nextDate){hearings++;if(p.nextDate<today)overdue++}});
+   });
+   const box=$("m144Health"); if(!box)return;
+   box.innerHTML='<div class="m144-health-grid">'+
+    [['Total records',rs.length],['Active',act.length],['Hearings',hearings],['Overdue',overdue],['Documents',docs],['Deleted',rs.length-act.length],['Duplicate IDs',dups.length],['Storage',navigator.onLine?'ONLINE':'OFFLINE']]
+    .map(x=>'<div class="m144-h"><b>'+String(x[1])+'</b><span>'+x[0]+'</span></div>').join('')+
+    '</div><div style="margin-top:8px;font-size:10px;color:#64748b">Last checked: '+new Date().toLocaleString('en-IN')+'</div>';
+   box.classList.add("show");
+ }
+ function restoreFile(file){
+   const rd=new FileReader();
+   rd.onload=function(){
+     try{
+       const p=JSON.parse(rd.result);
+       const incoming=Array.isArray(p)?p:(Array.isArray(p.records)?p.records:null);
+       if(!incoming)throw new Error("Backup does not contain a records array.");
+       const existing=all(),byId=new Map(existing.map(r=>[String(r.recordId||""),r]));
+       let added=0,updated=0;
+       incoming.forEach(r=>{
+         if(!r||typeof r!=="object")return;
+         const id=String(r.recordId||"");
+         if(!id)return;
+         const old=byId.get(id);
+         if(!old){byId.set(id,r);added++}
+         else if((Date.parse(r.updatedAt)||0)>=(Date.parse(old.updatedAt)||0)){byId.set(id,r);updated++}
+       });
+       localStorage.setItem(KEY,JSON.stringify([...byId.values()]));
+       if(p.appState)Object.entries(p.appState).forEach(([k,v])=>{try{localStorage.setItem(k,String(v))}catch(e){}});
+       if(typeof window.loadLocal==="function")window.loadLocal();
+       if(typeof window.renderAll==="function")window.renderAll();
+       if(typeof window.queueTrueAutoSync==="function")window.queueTrueAutoSync();
+       toast("Backup merged: "+added+" new, "+updated+" updated record(s).");
+       showHealth();
+     }catch(e){toast("Backup import failed: "+e.message)}
+   };
+   rd.onerror=()=>toast("Backup file could not be read.");
+   rd.readAsText(file);
+ }
+ function install(){
+   const card=document.querySelector("#cases");
+   if(card&&!$("m144Tools")){
+     const head=card.querySelector("div[style*='justify-content:space-between']");
+     if(head){
+       const tools=document.createElement("div");tools.id="m144Tools";
+       tools.innerHTML='<button type="button" class="btn btn-light" id="m144Backup">💾 Full Backup</button>'+
+                       '<label class="btn btn-light" style="cursor:pointer;margin:0">📥 Restore Backup<input id="m144RestoreInput" type="file" accept=".json,application/json" hidden></label>'+
+                       '<button type="button" class="btn btn-light" id="m144HealthBtn">🛡️ Data Health</button>'+
+                       '<button type="button" class="btn btn-light" id="m144Repair">🧹 Repair IDs</button>';
+       head.appendChild(tools);
+       const health=document.createElement("div");health.id="m144Health";card.insertBefore(health,card.querySelector(".search-box"));
+       $("m144Backup").onclick=backup;$("m144HealthBtn").onclick=()=>{showHealth();$("m144Health").scrollIntoView({behavior:"smooth",block:"nearest"})};
+       $("m144Repair").onclick=()=>{if(confirm("Repair missing/duplicate record IDs and normalize core record metadata?"))repair()};
+       $("m144RestoreInput").onchange=e=>{const f=e.target.files?.[0];if(f&&confirm("Merge this backup into the current portal? Existing newer records will be kept."))restoreFile(f);e.target.value=""};
+     }
+   }
+   document.addEventListener("keydown",e=>{
+     const tag=(document.activeElement?.tagName||"").toLowerCase();
+     if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"&&!["input","textarea","select"].includes(tag)){
+       e.preventDefault();safe(()=>{window.MACT?.saveLocal?.();window.queueTrueAutoSync?.();toast("Saved locally; cloud sync queued.")});
+     }
+     if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==="b"){e.preventDefault();backup()}
+   });
+   window.addEventListener("online",()=>{setTimeout(()=>window.queueTrueAutoSync?.(),1200)});
+   window.addEventListener("beforeunload",()=>safe(()=>window.MACT?.saveLocal?.()));
+   setTimeout(showHealth,1200);
+ }
+ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
+ window.MACTV144={backup,showHealth,repair};
+})();
+</script>
 
 </body></html>`);
  win.document.close();
@@ -3950,6 +4119,146 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
  window.MACTV14={open,sync:()=>sync("merge"),connect,disconnect,update:updateUI,getConfig:()=>({scriptUrl:getUrl(),folder:localStorage.getItem(FOLDER_KEY)||"MACT Legal Portal V14"})};
  window.queueTrueAutoSync=()=>{if(window.MACTV14&&typeof window.MACTV14.sync==="function")return window.MACTV14.sync();return false};
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bind,{once:true});else bind();
+})();
+</script>
+
+
+<!-- MACT V14.4 STABILITY + PRODUCTIVITY PATCH -->
+<style id="mact-v144-stability-css">
+#m144Tools{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 12px}
+#m144Tools .btn{font-size:11px}
+#m144Health{display:none;margin:10px 0 0;padding:12px;border:1px solid #dbe5f0;border-radius:12px;background:#f8fbff}
+#m144Health.show{display:block}
+.m144-health-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.m144-h{padding:9px;border:1px solid #e1e8f0;border-radius:9px;background:#fff}.m144-h b{display:block;font-size:16px}.m144-h span{font-size:9px;color:#64748b}
+body.mact-dark #m144Health{background:#111b2e;border-color:#26334a}body.mact-dark .m144-h{background:#0f192a;border-color:#33425d}
+@media(max-width:700px){.m144-health-grid{grid-template-columns:1fr 1fr}}
+</style>
+<script id="mact-v144-stability-js">
+(function(){
+ "use strict";
+ const $=id=>document.getElementById(id);
+ const KEY="mact_unlimited_records";
+ const safe=(fn,f)=>{try{return fn()}catch(e){console.error("MACT V14.4:",e);return f}};
+ const active=()=>safe(()=>JSON.parse(localStorage.getItem(KEY)||"[]"),[]).filter(r=>r&&!r.deleted&&!r.deletedAt);
+ const all=()=>safe(()=>JSON.parse(localStorage.getItem(KEY)||"[]"),[]);
+ const stamp=()=>new Date().toISOString();
+ function download(name,text,type){
+   const a=document.createElement("a"),u=URL.createObjectURL(new Blob([text],{type:type||"application/json"}));
+   a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1200);
+ }
+ function snapshot(){
+   const payload={
+     format:"MACT Legal Portal Full Backup",
+     version:"V14.4-stability",
+     exportedAt:stamp(),
+     records:all(),
+     appState:{}
+   };
+   ["mact_custom_fields_v1","mact_form_sections_layout","mact_field_visibility_v1","mact_print_fields_v1","mact_audit_v1","mact_audit_log_v1","mact_advanced_state_v1","mact_dark_mode"].forEach(k=>{
+     const v=localStorage.getItem(k); if(v!==null) payload.appState[k]=v;
+   });
+   return payload;
+ }
+ function backup(){
+   const p=snapshot();
+   download("MACT_Legal_Portal_Full_Backup_"+new Date().toISOString().slice(0,10)+".json",JSON.stringify(p,null,2));
+   toast("Full backup downloaded successfully.");
+ }
+ function repair(){
+   const rs=all();const seen=new Set();let repaired=0,invalid=0;
+   rs.forEach(r=>{
+     if(!r||typeof r!=="object"){invalid++;return}
+     if(!r.recordId||seen.has(String(r.recordId))){
+       r.recordId=(r.timestamp||"mact")+"-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
+       repaired++;
+     }
+     seen.add(String(r.recordId));
+     if(!r.createdAt)r.createdAt=r.updatedAt||stamp();
+     if(!r.updatedAt)r.updatedAt=r.createdAt;
+     if(!Array.isArray(r.proceedings))r.proceedings=[];
+   });
+   localStorage.setItem(KEY,JSON.stringify(rs.filter(Boolean)));
+   if(typeof window.loadLocal==="function")window.loadLocal();
+   if(typeof window.renderAll==="function")window.renderAll();
+   if(typeof window.queueTrueAutoSync==="function")window.queueTrueAutoSync();
+   toast(repaired?("Data check repaired "+repaired+" record ID(s)."):("Data check complete — no duplicate IDs found."));
+   showHealth();
+ }
+ function showHealth(){
+   const rs=all(),act=rs.filter(r=>!r.deleted&&!r.deletedAt),seen=new Set(),dups=[];
+   rs.forEach(r=>{const id=String(r?.recordId||"");if(id&&seen.has(id))dups.push(id);if(id)seen.add(id)});
+   let docs=0, hearings=0, overdue=0; const today=new Date().toISOString().slice(0,10);
+   act.forEach(r=>{
+     docs+=(r.documents||r.docs||[]).length;
+     (r.proceedings||[]).forEach(p=>{if(p.nextDate){hearings++;if(p.nextDate<today)overdue++}});
+   });
+   const box=$("m144Health"); if(!box)return;
+   box.innerHTML='<div class="m144-health-grid">'+
+    [['Total records',rs.length],['Active',act.length],['Hearings',hearings],['Overdue',overdue],['Documents',docs],['Deleted',rs.length-act.length],['Duplicate IDs',dups.length],['Storage',navigator.onLine?'ONLINE':'OFFLINE']]
+    .map(x=>'<div class="m144-h"><b>'+String(x[1])+'</b><span>'+x[0]+'</span></div>').join('')+
+    '</div><div style="margin-top:8px;font-size:10px;color:#64748b">Last checked: '+new Date().toLocaleString('en-IN')+'</div>';
+   box.classList.add("show");
+ }
+ function restoreFile(file){
+   const rd=new FileReader();
+   rd.onload=function(){
+     try{
+       const p=JSON.parse(rd.result);
+       const incoming=Array.isArray(p)?p:(Array.isArray(p.records)?p.records:null);
+       if(!incoming)throw new Error("Backup does not contain a records array.");
+       const existing=all(),byId=new Map(existing.map(r=>[String(r.recordId||""),r]));
+       let added=0,updated=0;
+       incoming.forEach(r=>{
+         if(!r||typeof r!=="object")return;
+         const id=String(r.recordId||"");
+         if(!id)return;
+         const old=byId.get(id);
+         if(!old){byId.set(id,r);added++}
+         else if((Date.parse(r.updatedAt)||0)>=(Date.parse(old.updatedAt)||0)){byId.set(id,r);updated++}
+       });
+       localStorage.setItem(KEY,JSON.stringify([...byId.values()]));
+       if(p.appState)Object.entries(p.appState).forEach(([k,v])=>{try{localStorage.setItem(k,String(v))}catch(e){}});
+       if(typeof window.loadLocal==="function")window.loadLocal();
+       if(typeof window.renderAll==="function")window.renderAll();
+       if(typeof window.queueTrueAutoSync==="function")window.queueTrueAutoSync();
+       toast("Backup merged: "+added+" new, "+updated+" updated record(s).");
+       showHealth();
+     }catch(e){toast("Backup import failed: "+e.message)}
+   };
+   rd.onerror=()=>toast("Backup file could not be read.");
+   rd.readAsText(file);
+ }
+ function install(){
+   const card=document.querySelector("#cases");
+   if(card&&!$("m144Tools")){
+     const head=card.querySelector("div[style*='justify-content:space-between']");
+     if(head){
+       const tools=document.createElement("div");tools.id="m144Tools";
+       tools.innerHTML='<button type="button" class="btn btn-light" id="m144Backup">💾 Full Backup</button>'+
+                       '<label class="btn btn-light" style="cursor:pointer;margin:0">📥 Restore Backup<input id="m144RestoreInput" type="file" accept=".json,application/json" hidden></label>'+
+                       '<button type="button" class="btn btn-light" id="m144HealthBtn">🛡️ Data Health</button>'+
+                       '<button type="button" class="btn btn-light" id="m144Repair">🧹 Repair IDs</button>';
+       head.appendChild(tools);
+       const health=document.createElement("div");health.id="m144Health";card.insertBefore(health,card.querySelector(".search-box"));
+       $("m144Backup").onclick=backup;$("m144HealthBtn").onclick=()=>{showHealth();$("m144Health").scrollIntoView({behavior:"smooth",block:"nearest"})};
+       $("m144Repair").onclick=()=>{if(confirm("Repair missing/duplicate record IDs and normalize core record metadata?"))repair()};
+       $("m144RestoreInput").onchange=e=>{const f=e.target.files?.[0];if(f&&confirm("Merge this backup into the current portal? Existing newer records will be kept."))restoreFile(f);e.target.value=""};
+     }
+   }
+   document.addEventListener("keydown",e=>{
+     const tag=(document.activeElement?.tagName||"").toLowerCase();
+     if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"&&!["input","textarea","select"].includes(tag)){
+       e.preventDefault();safe(()=>{window.MACT?.saveLocal?.();window.queueTrueAutoSync?.();toast("Saved locally; cloud sync queued.")});
+     }
+     if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==="b"){e.preventDefault();backup()}
+   });
+   window.addEventListener("online",()=>{setTimeout(()=>window.queueTrueAutoSync?.(),1200)});
+   window.addEventListener("beforeunload",()=>safe(()=>window.MACT?.saveLocal?.()));
+   setTimeout(showHealth,1200);
+ }
+ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
+ window.MACTV144={backup,showHealth,repair};
 })();
 </script>
 
