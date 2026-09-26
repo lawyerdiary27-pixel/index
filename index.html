@@ -3768,9 +3768,39 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
  async function sha(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("")}
  function sizeKB(s){return (new TextEncoder().encode(s).byteLength/1024).toFixed(1)}
  function jsonp(action,extra={},attempt=0){return new Promise((resolve,reject)=>{const url=getUrl();if(!url)return reject(new Error("Apps Script URL not configured"));const cb="mactV14Cb_"+Date.now()+"_"+Math.random().toString(36).slice(2);const script=document.createElement("script");const params=new URLSearchParams(Object.assign({action,callback:cb,folder:"MACT Legal Portal V14",fileName:BACKUP_NAME,_:Date.now()},extra));let finished=false;let timer=setTimeout(()=>{if(finished)return;finished=true;cleanup();if(attempt<2){setTimeout(()=>jsonp(action,extra,attempt+1).then(resolve).catch(reject),800)}else reject(new Error("Apps Script endpoint timed out. Check that the Web App deployment allows anonymous access."))},15000);function cleanup(){clearTimeout(timer);delete window[cb];script.remove()}window[cb]=data=>{if(finished)return;finished=true;cleanup();if(data&&data.ok===false){reject(new Error(data.error||"Apps Script returned an error"));return}resolve(data)};script.onerror=()=>{if(finished)return;finished=true;cleanup();if(attempt<2){setTimeout(()=>jsonp(action,extra,attempt+1).then(resolve).catch(reject),800)}else reject(new Error("Apps Script endpoint could not be reached. Check the Web App deployment access."))};script.src=url+"?"+params.toString();document.head.appendChild(script)})}
- async function postBackup(){const url=getUrl();if(!url)throw new Error("Apps Script URL not configured");const body=JSON.stringify({action:"backup",folder:"MACT Legal Portal V14",fileName:BACKUP_NAME,payload:buildPayload()});await fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body});return true}
- function merge(local,cloud){const m=new Map(local.map(normalize).map(r=>[String(r.recordId),r]));(cloud||[]).map(normalize).forEach(r=>{const old=m.get(String(r.recordId));if(!old||((Date.parse(r.updatedAt)||0)>=(Date.parse(old.updatedAt)||0)))m.set(String(r.recordId),r)});return [...m.values()]}
- async function applyCloud(data){if(!data||!data.payload||!Array.isArray(data.payload.records))throw new Error("Invalid Drive backup returned by Apps Script");const p=data.payload;localStorage.setItem("mact_unlimited_records",JSON.stringify(p.records));Object.entries(p.appState||{}).forEach(([k,v])=>{try{localStorage.setItem(k,v)}catch(e){}});if(typeof window.loadLocal==="function")try{window.loadLocal()}catch(e){}if(typeof window.renderAll==="function")try{window.renderAll()}catch(e){}}
+ async function postBackup(){
+  const url=getUrl();
+  if(!url)throw new Error("Apps Script URL not configured");
+  const payload=buildPayload();
+  const body=JSON.stringify({action:"backup",folder:"MACT Legal Portal V14",fileName:BACKUP_NAME,payload});
+  // Apps Script may return an opaque response cross-origin. Send the backup,
+  // then VERIFY it with the JSONP GET before treating Drive as synchronized.
+  await fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body});
+  await new Promise(r=>setTimeout(r,900));
+  const check=await jsonp("get");
+  const got=Array.isArray(check?.payload?.records)?check.payload.records.map(normalize):[];
+  const wanted=Array.isArray(payload.records)?payload.records.map(normalize):[];
+  const gotIds=new Set(got.map(r=>String(r.recordId)));
+  const missing=wanted.filter(r=>!gotIds.has(String(r.recordId)));
+  if(got.length < wanted.length || missing.length) throw new Error("Drive backup verification failed: Google Drive did not return all uploaded records.");
+  return true;
+ }
+ function merge(local,cloud){
+  const m=new Map(local.map(normalize).map(r=>[String(r.recordId),r]));
+  (cloud||[]).map(normalize).forEach(r=>{
+    const old=m.get(String(r.recordId));
+    if(!old||((Date.parse(r.updatedAt)||0)>=(Date.parse(old.updatedAt)||0)))m.set(String(r.recordId),r);
+  });
+  return [...m.values()];
+ }
+ async function applyCloud(data){
+  if(!data||!data.payload||!Array.isArray(data.payload.records))throw new Error("Invalid Drive backup returned by Apps Script");
+  const p=data.payload;
+  localStorage.setItem("mact_unlimited_records",JSON.stringify(p.records));
+  Object.entries(p.appState||{}).forEach(([k,v])=>{try{localStorage.setItem(k,v)}catch(e){}});
+  if(typeof window.loadLocal==="function")try{window.loadLocal()}catch(e){}
+  if(typeof window.renderAll==="function")try{window.renderAll()}catch(e){}
+ }
  async function sync(mode="merge"){
   if(syncing)return false;
   if(!navigator.onLine){setStatus("warn","Internet unavailable • Auto retry ON");log("Cloud sync paused: internet unavailable. Automatic retry remains enabled.");return false}
@@ -3778,42 +3808,77 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
   try{
    saveSettings();
    const local=records();
-   const localText=payloadText();
    const oldSig=localStorage.getItem(SIG_KEY)||"";
    const cloud=await jsonp("get");
    if(!cloud||cloud.ok!==true||!cloud.payload)throw new Error("Google Drive master could not be read.");
-   const cloudRecords=Array.isArray(cloud.payload.records)?cloud.payload.records:[];
-   if(mode==="download"){
-     await applyCloud(cloud);
-     localStorage.setItem(SIG_KEY,await sha(payloadText()));markLast();
-     setStatus("ok","Google Drive connected • Master loaded");log("Drive master loaded successfully.");updateUI();return true;
+   const cloudRecords=Array.isArray(cloud.payload.records)?cloud.payload.records.map(normalize):[];
+
+   // SAFETY RULE: an empty/missing Drive file must NEVER erase existing
+   // portal records. If this browser has records and Drive is empty, upload
+   // the browser copy first and verify it, then continue normally.
+   if(cloudRecords.length===0 && local.length>0){
+     await postBackup();
+     localStorage.setItem(SIG_KEY,await sha(payloadText()));
+     markLast();
+     setStatus("ok","Google Drive connected • Records uploaded and verified");
+     log("Drive master was empty; existing portal records were uploaded and verified without data loss.");
+     updateUI();
+     return true;
    }
+
+   const localText=payloadText();
    const cloudText=JSON.stringify(cloud.payload);
    const localHash=await sha(localText),cloudHash=await sha(cloudText);
    const localChanged=!!oldSig&&localHash!==oldSig;
    const cloudChanged=!!oldSig&&cloudHash!==oldSig;
+
+   if(mode==="download"){
+     if(cloudRecords.length>0){
+       await applyCloud(cloud);
+       localStorage.setItem(SIG_KEY,await sha(payloadText()));
+       markLast();
+       setStatus("ok","Google Drive connected • Master loaded");
+       log("Drive master loaded successfully.");
+       updateUI();
+       return true;
+     }
+     throw new Error("Drive master is empty; local records were preserved.");
+   }
+
    if(!oldSig){
      const merged=merge(local,cloudRecords);
-     await applyCloud({payload:Object.assign({},cloud.payload,{records:merged})});
-     await postBackup();
-     log("Initial cloud setup completed: local + Drive records merged.");
+     if(local.length===0 && cloudRecords.length>0){
+       await applyCloud(cloud);
+       log("Initial Drive connection completed: existing Drive records loaded into the portal.");
+     }else if(local.length>0){
+       await applyCloud({payload:Object.assign({},cloud.payload,{records:merged})});
+       await postBackup();
+       log("Initial cloud setup completed: local + Drive records merged and verified.");
+     }else{
+       log("Initial Drive connection completed: both local and Drive contain no records.");
+     }
    }else if(localChanged&&cloudChanged){
      const merged=merge(local,cloudRecords);
      await applyCloud({payload:Object.assign({},cloud.payload,{records:merged})});
      await postBackup();
-     log("Two-way merge completed: both local and Drive changed.");
+     log("Two-way merge completed: both local and Drive changed; merged copy verified.");
    }else if(cloudChanged&&!localChanged){
-     await applyCloud(cloud);
-     log("Remote Drive changes pulled automatically.");
+     if(cloudRecords.length>0){
+       await applyCloud(cloud);
+       log("Remote Drive changes pulled automatically.");
+     }else if(local.length){
+       await postBackup();
+       log("Drive became empty; local records were preserved and re-uploaded.");
+     }
    }else if(localChanged&&!cloudChanged){
      await postBackup();
-     log("Local mutation pushed automatically to Drive.");
+     log("Local mutation pushed automatically to Drive and verified.");
    }else{
-     // First successful connection after a page refresh: make sure the Drive copy is current.
-     if(!cloudRecords.length && local.length){await postBackup();log("Drive master was empty; portal initialized it automatically.");}
-     else log("Google Drive is already synchronized.");
+     log("Google Drive is already synchronized.");
    }
-   localStorage.setItem(SIG_KEY,await sha(payloadText()));markLast();
+
+   localStorage.setItem(SIG_KEY,await sha(payloadText()));
+   markLast();
    setStatus("ok","Google Drive connected • Auto Sync ALWAYS ON");
    if($("m14Account"))$("m14Account").textContent="Backend: Google Apps Script • Google Drive";
    updateHeader("ok");
