@@ -3794,8 +3794,10 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
   return [...m.values()];
  }
  async function applyCloud(data){
-  if(!data||!data.payload||!Array.isArray(data.payload.records))throw new Error("Invalid Drive backup returned by Apps Script");
-  const p=data.payload;
+  if(!data||!data.payload)throw new Error("Invalid Drive backup returned by Apps Script");
+  const p=Object.assign({},data.payload);
+  if(!Array.isArray(p.records)&&Array.isArray(data.records))p.records=data.records;
+  if(!Array.isArray(p.records))throw new Error("Drive backup contains no records array");
   localStorage.setItem("mact_unlimited_records",JSON.stringify(p.records));
   Object.entries(p.appState||{}).forEach(([k,v])=>{try{localStorage.setItem(k,v)}catch(e){}});
   if(typeof window.loadLocal==="function")try{window.loadLocal()}catch(e){}
@@ -3811,7 +3813,9 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
    const oldSig=localStorage.getItem(SIG_KEY)||"";
    const cloud=await jsonp("get");
    if(!cloud||cloud.ok!==true||!cloud.payload)throw new Error("Google Drive master could not be read.");
-   const cloudRecords=Array.isArray(cloud.payload.records)?cloud.payload.records.map(normalize):[];
+   const rawCloudRecords=Array.isArray(cloud?.payload?.records)?cloud.payload.records:(Array.isArray(cloud?.records)?cloud.records:[]);
+   const cloudRecords=rawCloudRecords.map(normalize);
+   if(cloud.recovered) log("Existing Drive backup recovered from: "+(cloud.recoveredFrom||"another Drive location")+". Records found: "+cloudRecords.length);
 
    // SAFETY RULE: an empty/missing Drive file must NEVER erase existing
    // portal records. If this browser has records and Drive is empty, upload
