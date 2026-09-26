@@ -2,24 +2,7 @@
 <html lang="en">
 <head>
 
-<script>
-/* =========================
-   MACT V9 CLOUD CONFIG
-   =========================
-   Create a Firebase Web App and paste its config below.
-   Do NOT put a service-account/private key here.
-*/
-window.MACT_FIREBASE_CONFIG = {
-  apiKey: "PASTE_FIREBASE_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.firebasestorage.app",
-  messagingSenderId: "PASTE_MESSAGING_SENDER_ID",
-  appId: "PASTE_FIREBASE_APP_ID"
-};
-window.MACT_CLOUD_COLLECTION = "mactUsers";
-window.MACT_CLOUD_VERSION = "V9";
-</script>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import {
@@ -356,30 +339,12 @@ body.mact-dark .v7-command-kbd{border-color:#33425d}
 </head>
 <body>
 
-<div id="mactAuthGate" style="display:none!important;position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.94);align-items:center;justify-content:center;padding:20px">
-  <div style="width:min(430px,100%);background:#fff;border-radius:24px;padding:30px;box-shadow:0 25px 80px rgba(0,0,0,.35);text-align:center">
-    <div style="font-size:46px">⚖️</div>
-    <h2 style="margin:10px 0 6px;font-size:24px">MACT Legal Portal</h2>
-    <p style="color:#64748b;margin:0 0 22px">Google Drive cloud sync is automatic. No Google login, Sync Key or manual connection is required.</p>
-    <div id="mactGoogleButton" style="display:flex;justify-content:center"></div>
-    <button id="mactGoogleLogin" type="button" style="width:100%;margin-top:14px;border:0;border-radius:12px;padding:13px 16px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">Cloud Sync is Automatic</button>
-    <div id="mactAuthError" style="display:none;color:#b91c1c;margin-top:14px;font-size:13px"></div>
-    <small style="display:block;color:#94a3b8;margin-top:18px">Google Drive is required. Manual cloud login is not used.</small>
-  </div>
-</div>
-<div id="mactUserBar" style="display:none!important;position:fixed;right:16px;bottom:16px;z-index:5000;background:rgba(15,23,42,.96);color:#fff;border-radius:14px;padding:9px 12px;box-shadow:0 8px 30px rgba(0,0,0,.25);align-items:center;gap:9px;font-size:12px">
-  <img id="mactUserPhoto" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;display:none">
-  <span id="mactUserName"></span>
-  <span id="mactCloudState" style="opacity:.7">●</span>
-  <button id="mactGoogleLogout" type="button" style="border:0;background:#334155;color:#fff;border-radius:8px;padding:6px 9px;cursor:pointer">Sign out</button>
-</div>
-
 <aside class="mact-sidebar"><div class="mact-brand"><div class="mact-brand-icon">⚖</div><div><strong>MACT Advocate Office</strong><small>Case Management Suite</small></div></div><nav class="mact-nav"><div class="mact-nav-label">Workspace</div><button type="button" class="active" onclick="mactGo('dashboard')"><span class="ico">⌂</span>Dashboard</button><button type="button" onclick="mactGo('cases')"><span class="ico">▤</span>Case Files</button><button type="button" onclick="mactGo('hearings')"><span class="ico">◷</span>Hearings & Calendar</button><button type="button" onclick="mactGo('clients')"><span class="ico">♙</span>Clients / Claimants</button><div class="mact-nav-label" style="margin-top:12px">Tools</div><button type="button" onclick="mactOpen('generatePetitionBtn')"><span class="ico">§</span>Petitions</button><button type="button" onclick="mactOpen('documentsBtn')"><span class="ico">▧</span>Documents</button><button type="button" onclick="mactOpen('analyticsBtn')"><span class="ico">◒</span>Reports & Analytics</button><button type="button" onclick="mactOpen('backupBtn')"><span class="ico">⇩</span>Backup & Restore</button></nav><div class="mact-side-bottom"><div class="mact-user"><div class="mact-avatar">A</div><div><b style="font-size:11px">Advocate Workspace</b><small style="display:block;color:#91a0bc;font-size:9px">Google Drive Cloud Workspace</small></div></div></div></aside><div class="mact-main">
 <!-- MACT V7 SMART WORKSPACE -->
 <div class="mact-v7-toolbar" id="mactV7Toolbar">
   <input id="v7GlobalCommandSearch" class="search-box v7-search"
          placeholder="⌕ Smart search / command (Ctrl+K)…" autocomplete="off">
-  <span class="v7-chip" id="v7DataChip"><i class="v7-dot"></i><span>Local data ready</span></span>
+  <span class="v7-chip" id="v7DataChip"><i class="v7-dot"></i><span>Google Drive Auto Sync</span></span>
   <span class="v7-chip" id="v7SaveChip">● Saved</span>
   <span class="v7-live" id="v7Clock">--:--</span>
 </div>
@@ -400,9 +365,9 @@ body.mact-dark .v7-command-kbd{border-color:#33425d}
  <div>
   <h1>⚖️ MACT Legal Portal</h1>
   <div style="font-size:12px;color:var(--secondary);margin-top:3px">
-   <span id="connectionStatus" class="status offline">● Google Drive Required</span>
-   <span id="syncStatus">☁ Google Drive Required</span> | <span id="trueAutoSyncStatus">☁ Auto Sync: Ready</span> | 
-   <span id="lastSyncStatus">Last Sync: Never</span>
+   <span id="connectionStatus" class="status offline">● Google Drive: Connecting…</span>
+   <span id="syncStatus">☁ Auto Sync: Connecting…</span> | <span id="trueAutoSyncStatus">☁ Auto Sync: ON</span> | 
+   <span id="lastSyncStatus">Last Drive Sync: Pending</span>
    <span id="headerTodayBadge" class="header-today-badge" style="display:none"></span>
   </div>
  </div>
@@ -2250,215 +2215,58 @@ function normalizeCloudRecord(r){
  delete x.judgmentPdfData;
  return x;
 }
+/* ========================= V14.4 CLOUD-ONLY COMPATIBILITY LAYER ========================= */
 async function syncCloud(){
- if(syncBusy)return false;
- if(!navigator.onLine){if($("syncStatus"))$("syncStatus").textContent="☁ Google Drive required • Waiting for internet";return false;}
- syncBusy=true;
- if($("syncStatus"))$("syncStatus").textContent="☁ Uploading…";
- try{
-  records=records.map(normalizeCloudRecord);
-  saveLocal();
-  const payload={action:"backup",folder:V14_SYNC_FOLDER,fileName:V14_SYNC_FILE,records,updatedAt:nowISO(),source:"MACT Legal Portal",appVersion:"V14.1-Drive-Master"};
-  await fetch(getCloudUrl(),{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
-  await new Promise(r=>setTimeout(r,900));
-  const check=await cloudJsonp("get");
-  const cloudRecords=Array.isArray(check)?check:(Array.isArray(check.records)?check.records:[]);
-  cloudConnected=true;localStorage.setItem("mact_cloud_connected","1");
-  const time=new Date().toLocaleString();
-  localStorage.setItem("mact_last_sync",time);
-  if($("syncStatus"))$("syncStatus").textContent="☁ Cloud Sync Active";
-  if($("lastSyncStatus"))$("lastSyncStatus").textContent="Last Sync: "+time;
-  if($("v7DataChip")){const sp=$("v7DataChip").querySelector("span");if(sp)sp.textContent="Cloud synced";}
-  toast(`Cloud sync complete • ${cloudRecords.length} record(s) on server.`);
-  return true;
- }catch(err){
-  console.error("Cloud sync error:",err);
-  cloudConnected=false;localStorage.removeItem("mact_cloud_connected");
-  if($("syncStatus"))$("syncStatus").textContent="☁ Google Drive unavailable • Retry required";
-  toast("Cloud sync failed. Local data is safe. Check Cloud URL / Apps Script deployment.");
+  if(window.MACTV14 && typeof window.MACTV14.sync === "function") return window.MACTV14.sync();
   return false;
- }finally{syncBusy=false;}
 }
 async function pullCloud(){
- if(!navigator.onLine){
-  if($("syncStatus"))$("syncStatus").textContent="☁ Google Drive required • Waiting for internet";
-  toast("You are offline. Cloud records are available.");
+  if(window.MACTV14 && typeof window.MACTV14.sync === "function") return window.MACTV14.sync();
   return false;
- }
- if($("syncStatus"))$("syncStatus").textContent="☁ Checking cloud…";
- try{
-  const result=await cloudJsonp("get");
-  const cloudRecords=Array.isArray(result)?result:(Array.isArray(result.records)?result.records:[]);
-  // Google Drive is the master database; browser storage is only a cache/offline queue.
-   records=cloudRecords.map(normalizeCloudRecord);
-   if(result && result.payload && result.payload.appState && typeof result.payload.appState==="object"){
-    Object.entries(result.payload.appState).forEach(([k,v])=>{try{localStorage.setItem(k,v)}catch(e){}});
-   }
-   saveLocal();renderAll();
-   cloudConnected=true;localStorage.setItem("mact_cloud_connected","1");
-  if($("syncStatus"))$("syncStatus").textContent="☁ Cloud Sync Active";
-  toast(`Cloud connected • ${cloudRecords.length} record(s) received.`);
-  return true;
- }catch(err){
-  console.warn("Cloud read unavailable:",err);
-  // A failed large-data GET must not mark the whole backend offline.
-  // The small health request is the authoritative connectivity check.
-  try{
-   const health=await cloudJsonp("health");
-   if(health&&health.ok===true){
-    cloudConnected=true;
-    localStorage.setItem("mact_cloud_connected","1");
-    if($("syncStatus"))$("syncStatus").textContent="☁ Cloud Online • Read retrying";
-    return false;
-   }
-  }catch(healthErr){
-   console.warn("Cloud health check failed:",healthErr);
-  }
-  cloudConnected=false;
-  localStorage.removeItem("mact_cloud_connected");
-  if($("syncStatus"))$("syncStatus").textContent="☁ Google Drive unavailable • Retry required";
-  return false;
- }
 }
 async function restoreFromCloud(){
- if(!navigator.onLine){toast("You are offline. Cannot restore from cloud.");return;}
- if(!confirm("Restore all non-deleted cloud records into the local register?"))return;
- toast("Restoring cloud records…");
- try{
-  const result=await cloudJsonp("restore",{scope:"all"});
-  const cloudRecords=Array.isArray(result)?result:(Array.isArray(result.records)?result.records:[]);
-  if(!cloudRecords.length){toast("Cloud backup is empty.");return;}
-  const map=new Map(records.map(r=>[String(r.recordId||r.timestamp),r]));let restored=0;
-  cloudRecords.forEach(raw=>{
-   if(!raw||typeof raw!=="object")return;
-   const cr=normalizeCloudRecord(raw),key=String(cr.recordId),local=map.get(key);
-   if(!local){map.set(key,cr);if(!cr.deleted)restored++;return;}
-   const wasDeleted=!!local.deleted;
-   const ct=new Date(cr.updatedAt||0).getTime(),lt=new Date(local.updatedAt||0).getTime();
-   if(!cr.deleted&&(wasDeleted||ct>=lt)){map.set(key,cr);if(wasDeleted)restored++;}
-  });
-  records=[...map.values()];saveLocal();renderAll();cloudConnected=true;
-  const time=new Date().toLocaleString();localStorage.setItem("mact_last_sync",time);
-  if($("lastSyncStatus"))$("lastSyncStatus").textContent="Last Sync: "+time;
-  toast(restored?`${restored} record(s) restored from cloud.`:"No deleted cloud records were found.");
- }catch(err){console.error("Restore error:",err);toast("Cloud restore failed. Check Apps Script deployment.");}
+  // Restore is intentionally disabled in the automatic cloud-only flow.
+  return false;
 }
-if($("restoreCloudBtn"))$("restoreCloudBtn").onclick=restoreFromCloud;
 async function connectCloud(){
- if(!navigator.onLine){toast("You are offline. Drive sync will resume automatically.");return;}
- toast("Checking Google Drive connection…");
- const ok=await pullCloud();
- if(ok){toast("Google Drive is online. Drive is the master database.");return;}
- if(cloudConnected){toast("Apps Script is online. Drive read will retry automatically.");return;}
- toast("Google Drive endpoint is unavailable. The fixed Apps Script URL will be retried automatically.");
-}
-if($("googleLoginBtn"))$("googleLoginBtn").onclick=connectCloud;
-
-function updateStats(){
- const visibleRecords=records.filter(r=>!r.deleted&&!r.deletedAt);
- if($("totalCases")) $("totalCases").textContent = visibleRecords.length;
- const active = visibleRecords.filter(r => {
-  const s = String(r.finalStatus || r.judgementStatus || "").toLowerCase();
-  return !s.includes("closed") && !s.includes("disposed") && !s.includes("settled");
- }).length;
- const pending = visibleRecords.filter(r => {
-  const s = String(r.finalStatus || r.judgementStatus || "").toLowerCase();
-  return s.includes("pending");
- }).length;
- const judgments = visibleRecords.filter(r => {
-  const s = String(r.judgementStatus || "").toLowerCase();
-  return s.includes("judgment") || s.includes("judgement");
- }).length;
- if($("activeCases")) $("activeCases").textContent = active;
- if($("pendingCases")) $("pendingCases").textContent = pending;
- if($("judgmentCases")) $("judgmentCases").textContent = judgments;
+  if(window.MACTV14 && typeof window.MACTV14.sync === "function") return window.MACTV14.sync();
+  return false;
 }
 
 function renderAll(){
- renderTable();
- updateStats();
- checkTodaysHearings();
- updateConnectionUI();
- const last = localStorage.getItem("mact_last_sync");
- if($("lastSyncStatus")) $("lastSyncStatus").textContent = "Last Sync: " + (last || "Never");
+  renderTable();
+  updateStats();
+  checkTodaysHearings();
+  updateConnectionUI();
+  if(window.MACTV14 && typeof window.MACTV14.update === "function") window.MACTV14.update();
 }
 
-async function initializeApp(){
- loadLocal();
- renderForm();
- renderProceedings([]);
- renderAll();
- updateConnectionUI();
+function initializeApp(){
+  loadLocal();
+  renderForm();
+  renderProceedings([]);
+  renderAll();
+  updateConnectionUI();
 
- const cachedRecords = records.slice();
- if(navigator.onLine){
-  setTimeout(async()=>{
-   try{
-    setStatus("warn","Connecting to Google Drive…");
-    const remote = await cloudJsonp("get");
-    const remoteRecords = remote && remote.payload && Array.isArray(remote.payload.records)
-      ? remote.payload.records.map(normalizeCloudRecord) : [];
-
-    if(remoteRecords.length){
-     records = remoteRecords;
-     if(remote.payload.appState && typeof remote.payload.appState==="object"){
-      Object.entries(remote.payload.appState).forEach(([k,v])=>{try{localStorage.setItem(k,v)}catch(e){}});
-     }
-     saveLocal();
-     renderAll();
-     cloudConnected=true;
-     localStorage.setItem("mact_cloud_connected","1");
-     const t=new Date().toLocaleString();
-     localStorage.setItem("mact_last_sync",t);
-     if($("lastSyncStatus"))$("lastSyncStatus").textContent="Last Sync: "+t;
-     setStatus("ok","Connected • Google Drive is Master");
-     log("Startup: Drive master loaded; browser cache replaced.");
-    }else if(cachedRecords.length){
-     records=cachedRecords;
-     saveLocal();
-     await syncCloud();
-     log("Startup: Drive was empty; existing cache migrated to Drive once.");
-    }else{
-     records=[];
-     saveLocal();
-     renderAll();
-     cloudConnected=true;
-     localStorage.setItem("mact_cloud_connected","1");
-     setStatus("ok","Connected • Google Drive is Master");
-     log("Startup: Drive master is empty; ready for first record.");
-    }
-   }catch(e){
-    console.warn("Drive master startup:",e);
-    setStatus("warn","Cloud Online / Retry Pending");
-    log("Startup Drive read failed; browser cache retained temporarily: "+e.message);
-   }
-  },500);
- }
-
- clearInterval(cloudTimer);
- cloudTimer=setInterval(()=>{if(navigator.onLine&&!syncBusy)pullCloud()},60000);
-
- const openNewBtn = $("openNewFileModalBtn");
- if(openNewBtn) openNewBtn.onclick = openNewRecord;
- if(!records.length && $("topAddDateBtn")){ $("topAddDateBtn").disabled = false; }
+  const openNewBtn = $("openNewFileModalBtn");
+  if(openNewBtn) openNewBtn.onclick = openNewRecord;
+  if(!records.length && $("topAddDateBtn")){ $("topAddDateBtn").disabled = false; }
 }
 
-document.addEventListener("DOMContentLoaded", initializeApp);
-
+document.addEventListener("DOMContentLoaded", initializeApp, {once:true});
 window.addEventListener("beforeunload", () => { try{ saveLocal(); }catch(e){} });
 
 window.MACT = {
- get records(){ return records; },
- saveLocal,
- syncCloud,
- pullCloud,
- restoreFromCloud,
- renderAll,
- openDetail,
- editRecord,
- deleteRecord
+  get records(){ return records; },
+  saveLocal,
+  syncCloud,
+  pullCloud,
+  restoreFromCloud,
+  renderAll,
+  openDetail,
+  editRecord,
+  deleteRecord
 };
-
 
 /* ==========================================================
    ADVANCED FEATURE ENGINE - additive layer; existing features stay intact
@@ -2811,7 +2619,7 @@ function updateClock(){
 }
 function updateSaveChip(){
   const el=$("v7SaveChip");if(!el)return;
-  el.textContent=safe(()=>localStorage.getItem("mact_last_sync"),"")?"● Saved":"● Local";
+  el.textContent=safe(()=>localStorage.getItem("mact_v14_drive_last_sync"),"")?"● Cloud Synced":"● Cloud Syncing";
 }
 function updateSmartAlert(){
   const hs=[];active().forEach(r=>(r.proceedings||[]).forEach(p=>{if(p.nextDate)hs.push(p.nextDate)}));
@@ -2872,324 +2680,11 @@ window.addEventListener("unhandledrejection",function(e){
 </script>
 
 
-<script>
-/* =========================
-   V9 Firebase Cloud Bridge
-   ========================= */
-(function(){
-  const state={applying:false,lastRemoteHash:""};
-  const $id=id=>document.getElementById(id);
-  const toastSafe=msg=>{try{if(typeof toast==="function")toast(msg);else console.log(msg)}catch(e){console.log(msg)}};
-  const uid=()=>crypto.randomUUID?crypto.randomUUID():"mact-"+Date.now()+"-"+Math.random().toString(36).slice(2);
-
-  function cloudReady(){return !!(window.MACTFirebase&&window.MACTFirebase.configured&&window.MACTFirebase.user);}
-  function cleanRecord(r){
-    const x=JSON.parse(JSON.stringify(r||{}));
-    x.recordId=String(x.recordId||x.timestamp||uid());
-    x.createdAt=x.createdAt||new Date().toISOString();
-    x.updatedAt=x.updatedAt||x.createdAt;
-    x.deleted=!!x.deleted;
-    x.deviceId=localStorage.getItem("mact_device_id")||(localStorage.setItem("mact_device_id",uid()),localStorage.getItem("mact_device_id"));
-    if(Array.isArray(x.documents))x.documents=x.documents.map(d=>{const z=Object.assign({},d);delete z.data;return z});
-    return x;
-  }
-  function hashRecords(list){
-    return JSON.stringify((list||[]).map(cleanRecord).sort((a,b)=>a.recordId.localeCompare(b.recordId)));
-  }
-  function mergeLWW(local,remote){
-    const map=new Map((local||[]).map(r=>[String(r.recordId),r]));
-    (remote||[]).forEach(rr=>{
-      const r=cleanRecord(rr), k=r.recordId, l=map.get(k);
-      if(!l){map.set(k,r);return}
-      const rt=new Date(r.updatedAt||0).getTime(), lt=new Date(l.updatedAt||0).getTime();
-      // Automatic conflict resolution: newest update wins.
-      // If timestamps tie, deviceId provides deterministic ordering.
-      if(rt>lt || (rt===lt && String(r.deviceId||"")>String(l.deviceId||""))) map.set(k,r);
-    });
-    return [...map.values()];
-  }
-  async function cloudWrite(){
-    if(!cloudReady()||state.applying)return false;
-    try{
-      const {db,user}=window.MACTFirebase;
-      const {doc,runTransaction,serverTimestamp}=window.MACTFirebase.__api;
-      const ref=doc(db,window.MACT_CLOUD_COLLECTION,user.uid);
-      const local=(typeof records!=="undefined"?records:[]).map(cleanRecord);
-      await runTransaction(db,async tx=>{
-        const snap=await tx.get(ref);
-        const remote=snap.exists()&&Array.isArray(snap.data().records)?snap.data().records:[];
-        const merged=mergeLWW(local,remote);
-        tx.set(ref,{
-          email:user.email||"",displayName:user.displayName||"",photoURL:user.photoURL||"",
-          records:merged,updatedAt:serverTimestamp(),schemaVersion:9
-        },{merge:true});
-      });
-      return true;
-    }catch(e){console.error("Cloud write:",e);toastSafe("Cloud save failed; local data is safe.");return false}
-  }
-  function applyRemote(data){
-    if(!data||!Array.isArray(data.records)||state.applying)return;
-    const remote=data.records.map(cleanRecord);
-    const local=(typeof records!=="undefined"?records:[]).map(cleanRecord);
-    const merged=mergeLWW(local,remote);
-    const h=hashRecords(merged);
-    if(h===state.lastRemoteHash)return;
-    state.lastRemoteHash=h;
-    if(hashRecords(local)===h)return;
-    state.applying=true;
-    try{
-      records=merged;
-      if(typeof saveLocal==="function")saveLocal();
-      if(typeof renderAll==="function")renderAll();
-      localStorage.setItem("mact_last_sync",new Date().toLocaleString());
-      const st=$id("mactCloudState");if(st)st.textContent="● Synced";
-    }finally{state.applying=false}
-  }
-
-  window.addEventListener("mact-cloud-data",e=>applyRemote(e.detail&&e.detail.data));
-
-  window.addEventListener("mact-auth",async e=>{
-    const user=e.detail&&e.detail.user;
-    const gate=$id("mactAuthGate"),bar=$id("mactUserBar");
-    if(user){
-      if(gate)gate.style.display="none";
-      if(bar)bar.style.display="flex";
-      if($id("mactUserName"))$id("mactUserName").textContent=user.displayName||user.email||"Google user";
-      if($id("mactUserPhoto")&&user.photoURL){$id("mactUserPhoto").src=user.photoURL;$id("mactUserPhoto").style.display="block"}
-      const st=$id("mactCloudState");if(st)st.textContent="● Connecting";
-      await new Promise(r=>setTimeout(r,500));
-      await cloudWrite();
-      if(st)st.textContent="● Synced";
-    }else{
-      if(bar)bar.style.display="none";
-      // Don't lock out existing local users when Firebase is not configured.
-      if(window.MACTFirebase&&window.MACTFirebase.configured){
-        if(gate)gate.style.display="flex";
-      }
-    }
-  });
-
-  document.addEventListener("DOMContentLoaded",()=>{
-    $id("mactGoogleLogin")?.addEventListener("click",async()=>{
-      try{await window.mactGoogleLogin()}catch(e){
-        console.error(e);
-        const box=$id("mactAuthError");if(box){box.textContent=e.message||"Google sign-in failed";box.style.display="block"}
-      }
-    });
-    $id("mactGoogleLogout")?.addEventListener("click",()=>window.mactGoogleLogout&&window.mactGoogleLogout());
-    window.MACTFirebase=window.MACTFirebase||{};
-    // Expose Firestore functions used by the bridge without leaking credentials.
-    if(window.MACTFirebase.configured){
-      import("https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js").then(api=>{
-        window.MACTFirebase.__api=api;
-      });
-    }
-    // Auto-save local mutations shortly after the app changes records.
-    let timer=0;
-    const schedule=()=>{
-      clearTimeout(timer);timer=setTimeout(()=>{if(cloudReady())cloudWrite()},900);
-    };
-    const oldSave=window.saveLocal;
-    if(typeof oldSave==="function"){
-      window.saveLocal=function(){const out=oldSave.apply(this,arguments);schedule();return out}
-    }
-  });
-})();
-</script>
 
 
 
-<script id="mact-v14-1-true-auto-sync">
-(function(){
-  "use strict";
 
-  const PENDING_KEY = "mact_v14_true_auto_pending_v1";
-  const LAST_REMOTE_KEY = "mact_v14_true_auto_remote_check_v1";
-  const DEVICE_KEY = "mact_device_id";
-  const CHECK_MS = 30000;
-  const RETRY_MS = 5000;
-  let queued = false;
-  let running = false;
-  let retryTimer = 0;
 
-  const $ = id => document.getElementById(id);
-  const online = () => navigator.onLine !== false;
-  const hasUrl = () => {
-    try { return !!String(APPS_SCRIPT_URL || "").trim(); }
-    catch(e){ return false; }
-  };
-  const pending = () => {
-    try { return localStorage.getItem(PENDING_KEY) === "1"; } catch(e){ return false; }
-  };
-  const setPending = v => {
-    try { localStorage.setItem(PENDING_KEY, v ? "1" : "0"); } catch(e){}
-    updateStatus(v ? "pending" : "ready");
-  };
-
-  function updateStatus(kind, message){
-    const el = $("trueAutoSyncStatus");
-    const main = $("syncStatus");
-    const chip = $("v7SaveChip");
-    if(!el) return;
-    if(kind === "syncing"){
-      el.textContent = "☁ Auto Sync: Syncing…";
-    }else if(kind === "pending"){
-      el.textContent = "⚠ Pending Sync";
-    }else if(kind === "failed"){
-      el.textContent = "⚠ Sync Retry Pending";
-    }else{
-      el.textContent = "☁ Auto Sync: Synced";
-    }
-    if(message && main && kind !== "syncing") main.textContent = message;
-    if(chip && kind === "pending") chip.textContent = "● Pending Sync";
-  }
-
-  function markMutation(){
-    setPending(true);
-    queued = true;
-    clearTimeout(retryTimer);
-
-    if(!online()){
-      updateStatus("pending", "☁ Google Drive required • Waiting for internet");
-      return;
-    }
-    if(!hasUrl()){
-      updateStatus("pending", "☁ Google Drive connection required");
-      return;
-    }
-    retryTimer = setTimeout(runQueuedSync, 350);
-  }
-
-  async function runQueuedSync(){
-    if(running || !queued) return;
-    queued = false;
-
-    if(!online() || !hasUrl()){
-      setPending(true);
-      return;
-    }
-
-    const fn = typeof window.MACTV14?.sync === "function" ? window.MACTV14.sync : (typeof window.syncCloud === "function" ? window.syncCloud : null);
-    if(!fn){
-      setPending(true);
-      return;
-    }
-
-    running = true;
-    updateStatus("syncing");
-    try{
-      const ok = await fn();
-      if(ok === false){
-        setPending(true);
-        updateStatus("failed", "☁ Sync failed • Retrying Google Drive");
-        retryTimer = setTimeout(runQueuedSync, RETRY_MS);
-      }else{
-        setPending(false);
-        updateStatus("ready");
-      }
-    }catch(err){
-      console.warn("V14.1 auto-sync:", err);
-      setPending(true);
-      updateStatus("failed", "☁ Sync failed • Retrying Google Drive");
-      retryTimer = setTimeout(runQueuedSync, RETRY_MS);
-    }finally{
-      running = false;
-    }
-  }
-
-  async function periodicCheck(){
-    if(running) return;
-
-    // Local mutations are always pushed first.
-    if(pending()){
-      queued = true;
-      await runQueuedSync();
-      return;
-    }
-
-    // No local pending changes: run the same record-level merge engine.
-    // This safely detects/pulls remote changes without blindly overwriting local data.
-    if(!online() || !hasUrl()) return;
-
-    const mergeSync = typeof window.MACTV14?.sync === "function"
-      ? window.MACTV14.sync
-      : (typeof window.pullCloud === "function" ? window.pullCloud : null);
-    if(!mergeSync) return;
-
-    try{
-      updateStatus("syncing");
-      const ok = await mergeSync();
-      if(ok !== false){
-        try { localStorage.setItem(LAST_REMOTE_KEY, new Date().toISOString()); } catch(e){}
-        updateStatus("ready");
-      }else if(pending()){
-        updateStatus("pending");
-      }
-    }catch(err){
-      console.warn("V14.1 periodic auto-sync:", err);
-      if(pending()) updateStatus("pending");
-      else updateStatus("failed");
-    }
-  }
-
-  // Public hook used by every record/document/hearing/recycle-bin mutation.
-  window.queueTrueAutoSync = markMutation;
-
-  // Online recovery: retry immediately when the connection returns.
-  window.addEventListener("online", function(){
-    if(pending()){
-      updateStatus("pending", "☁ Internet restored • Syncing…");
-      queued = true;
-      clearTimeout(retryTimer);
-      retryTimer = setTimeout(runQueuedSync, 250);
-    }else{
-      periodicCheck();
-    }
-  });
-
-  window.addEventListener("offline", function(){
-    if(pending() || hasUrl()) updateStatus("pending", "☁ Google Drive required • Waiting for internet");
-  });
-
-  // App reopening / returning to the tab: flush pending changes and check remote data.
-  document.addEventListener("visibilitychange", function(){
-    if(document.visibilityState === "visible") periodicCheck();
-  });
-  window.addEventListener("focus", periodicCheck);
-  window.addEventListener("pageshow", periodicCheck);
-
-  // Every 30 seconds: pull/check only when there is no local pending mutation.
-  setInterval(periodicCheck, CHECK_MS);
-
-  // On first load, detect any changes left by the previous session.
-  setTimeout(function(){
-    if(pending()){
-      queued = true;
-      if(online()) runQueuedSync();
-      else updateStatus("pending", "☁ Google Drive required • Waiting for internet");
-    }else{
-      periodicCheck();
-    }
-  }, 1200);
-
-  // Make the existing Auto Sync checkbox reflect the new always-on engine.
-  document.addEventListener("DOMContentLoaded", function(){
-    const cb = $("m14Auto");
-    if(cb){
-      cb.checked = true;
-      cb.title = "V14.1 True Auto-Sync is active";
-      cb.setAttribute("aria-label", "True Auto-Sync enabled");
-      try { localStorage.setItem("mact_v14_drive_auto", "1"); } catch(e){}
-    }
-  });
-
-  window.MACTV141 = {
-    syncNow: function(){ setPending(true); queued=true; return runQueuedSync(); },
-    checkNow: periodicCheck,
-    isPending: pending
-  };
-})();
-</script>
 
 <script id="mact-v10-button-repair">
 (function(){
@@ -4224,7 +3719,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
    </section>
    <section class="m14-card">
     <h3>📊 Sync health</h3>
-    <div class="m14-row"><div><div class="m14-stat" id="m14CaseCount">0</div><div class="m14-muted">local records</div></div><div><div class="m14-stat" id="m14Size">0 KB</div><div class="m14-muted">backup payload</div></div></div>
+    <div class="m14-row"><div><div class="m14-stat" id="m14CaseCount">0</div><div class="m14-muted">synced records</div></div><div><div class="m14-stat" id="m14Size">0 KB</div><div class="m14-muted">backup payload</div></div></div>
     <p id="m14Last">Last Drive sync: Never</p>
    </section>
    <section class="m14-card">
@@ -4234,7 +3729,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
    </section>
    <section class="m14-card m14-full">
     <label class="m14-check"><input id="m14Auto" type="checkbox"><span><b>True Auto Sync</b> — save/edit/delete/restore के बाद automatic sync, offline retry, और हर 30 सेकंड remote change-check.</span></label>
-    <p class="m14-muted">Google Drive is the master database. The portal does not switch to a local-only mode when the cloud is unavailable; it keeps retrying the cloud connection automatically.</p>
+    <p class="m14-muted">Google Drive is the master database. If the internet is unavailable, changes remain queued and the portal retries automatically when the connection returns.</p>
    </section>
    <section class="m14-card m14-full">
     <h3>🧭 Automatic Setup</h3>
@@ -4257,7 +3752,11 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
  const now=()=>new Date().toISOString();
  function log(m){const el=$("m14Log");if(el)el.textContent="["+new Date().toLocaleTimeString()+"] "+m+"\n"+el.textContent.slice(0,6000)}
  function toast14(m){if(typeof window.toast==="function")window.toast(m);else log(m)}
- function setStatus(kind,text){const d=$("m14Dot"),s=$("m14Status");if(d)d.className="m14-dot "+(kind||"");if(s)s.textContent=text}
+ function setStatus(kind,text){
+  const d=$("m14Dot"),el=$("m14Status");if(d)d.className="m14-dot "+(kind||"");if(el)el.textContent=text;
+  const hk=kind==="ok"?"ok":kind==="err"?"connecting":"connecting";
+  updateHeader(hk);
+ }
  function getUrl(){return FIXED_SCRIPT_URL}
  function saveSettings(){localStorage.setItem(FOLDER_KEY,"MACT Legal Portal V14");}
  function localRecords(){try{return Array.isArray(window.MACT?.records)?window.MACT.records:JSON.parse(localStorage.getItem("mact_unlimited_records")||"[]")}catch(e){return[]}}
@@ -4274,7 +3773,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
  async function applyCloud(data){if(!data||!data.payload||!Array.isArray(data.payload.records))throw new Error("Invalid Drive backup returned by Apps Script");const p=data.payload;localStorage.setItem("mact_unlimited_records",JSON.stringify(p.records));Object.entries(p.appState||{}).forEach(([k,v])=>{try{localStorage.setItem(k,v)}catch(e){}});if(typeof window.loadLocal==="function")try{window.loadLocal()}catch(e){}if(typeof window.renderAll==="function")try{window.renderAll()}catch(e){}}
  async function sync(mode="merge"){
   if(syncing)return false;
-  if(!navigator.onLine){setStatus("warn","Google Drive required • Waiting for internet");log("Cloud sync paused: internet unavailable. Automatic retry remains enabled.");return false}
+  if(!navigator.onLine){setStatus("warn","Internet unavailable • Auto retry ON");log("Cloud sync paused: internet unavailable. Automatic retry remains enabled.");return false}
   syncing=true;setStatus("warn","Connecting to Google Drive…");
   try{
    saveSettings();
@@ -4295,9 +3794,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
    const cloudChanged=!!oldSig&&cloudHash!==oldSig;
    if(!oldSig){
      const merged=merge(local,cloudRecords);
-     if(merged.length!==local.length||cloudRecords.length){
-       await applyCloud({payload:Object.assign({},cloud.payload,{records:merged})});
-     }
+     await applyCloud({payload:Object.assign({},cloud.payload,{records:merged})});
      await postBackup();
      log("Initial cloud setup completed: local + Drive records merged.");
    }else if(localChanged&&cloudChanged){
@@ -4318,19 +3815,32 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
    }
    localStorage.setItem(SIG_KEY,await sha(payloadText()));markLast();
    setStatus("ok","Google Drive connected • Auto Sync ALWAYS ON");
-   if($("syncStatus"))$("syncStatus").textContent="☁ Google Drive Auto Sync ALWAYS ON";
    if($("m14Account"))$("m14Account").textContent="Backend: Google Apps Script • Google Drive";
+   updateHeader("ok");
    updateUI();return true;
   }catch(e){
-   setStatus("err","Google Drive connection required");
+   setStatus("err","Google Drive connection unavailable");
    log("Cloud sync error: "+e.message);
-   if($("syncStatus"))$("syncStatus").textContent="☁ Google Drive connection required • Retrying automatically";
+   updateHeader("connecting", "☁ Google Drive connection unavailable • Automatic retry ON");
    return false;
   }finally{syncing=false;updateUI()}
  }
- function markLast(){const t=now();localStorage.setItem(LAST_KEY,t);if($("m14Last"))$("m14Last").textContent="Last Drive sync: "+new Date(t).toLocaleString()}
+ function updateHeader(kind="connecting",message=""){
+  const conn=$("connectionStatus"), main=$("syncStatus"), auto=$("trueAutoSyncStatus"), lastEl=$("lastSyncStatus");
+  const last=localStorage.getItem(LAST_KEY);
+  if(conn){
+    conn.className="status "+(kind==="ok"?"online":kind==="offline"?"offline":"warn");
+    conn.textContent=kind==="ok"?"● Google Drive Connected":kind==="offline"?"● Internet unavailable • Auto retry ON":"● Google Drive: Connecting…";
+  }
+  if(main){
+    main.textContent=message || (kind==="ok"?"☁ Google Drive Auto Sync ALWAYS ON":kind==="offline"?"☁ Auto Sync waiting for internet":"☁ Auto Sync: Connecting to Google Drive…");
+  }
+  if(auto) auto.textContent=kind==="ok"?"☁ Auto Sync: ON":kind==="offline"?"☁ Auto Sync: Waiting":"☁ Auto Sync: Retrying";
+  if(lastEl) lastEl.textContent=last?"Last Drive Sync: "+new Date(last).toLocaleString():"Last Drive Sync: Pending";
+ }
+ function markLast(){const t=now();localStorage.setItem(LAST_KEY,t);if($("m14Last"))$("m14Last").textContent="Last Drive sync: "+new Date(t).toLocaleString();updateHeader("ok")}
  async function connect(){return sync("merge")}
- function disconnect(){setStatus("warn","Cloud-only mode • Reconnecting automatically");log("Manual disconnect is disabled. Google Drive remains the required master database.");return false}
+ function disconnect(){setStatus("warn","Reconnecting to Google Drive automatically");log("Manual disconnect is disabled. Google Drive remains the required master database.");return false}
  function updateUI(){
   if($("m14CaseCount"))$("m14CaseCount").textContent=String(records().filter(r=>!r.deleted&&!r.deletedAt).length);
   if($("m14Size"))$("m14Size").textContent=sizeKB(payloadText())+" KB";
@@ -4341,6 +3851,8 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
   const last=localStorage.getItem(LAST_KEY);
   if(last&&$("m14Last"))$("m14Last").textContent="Last Drive sync: "+new Date(last).toLocaleString();
   if(u&&$("m14FileInfo"))$("m14FileInfo").textContent="Drive master: "+BACKUP_NAME+" • Apps Script managed";
+  const lastNow=localStorage.getItem(LAST_KEY);
+  if(lastNow && $("lastSyncStatus"))$("lastSyncStatus").textContent="Last Drive Sync: "+new Date(lastNow).toLocaleString();
  }
  function startAuto(){
   clearInterval(autoTimer);
@@ -4357,7 +3869,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
   ["m14Connect","m14Sync","m14Restore","m14Disconnect"].forEach(id=>{const b=$(id);if(b){b.disabled=true;b.style.display="none"}});
   if($("m14Auto")){ $("m14Auto").checked=true; $("m14Auto").disabled=true; $("m14Auto").style.display="none"; }
   window.addEventListener("online",()=>{setStatus("warn","Internet restored • Reconnecting to Google Drive…");setTimeout(()=>{if(!syncing)sync("merge")},250)});
-  window.addEventListener("offline",()=>setStatus("warn","Google Drive required • Waiting for internet"));
+  window.addEventListener("offline",()=>{setStatus("warn","Internet unavailable • Auto retry ON");updateHeader("offline")});
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&!syncing)sync("merge")});
   window.addEventListener("focus",()=>{if(!syncing)sync("merge")});
   updateUI();
@@ -4365,6 +3877,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
   setTimeout(()=>{if(!syncing)sync("merge")},900);
  }
  window.MACTV14={open,sync:()=>sync("merge"),connect,disconnect,update:updateUI,getConfig:()=>({scriptUrl:getUrl(),folder:localStorage.getItem(FOLDER_KEY)||"MACT Legal Portal V14"})};
+ window.queueTrueAutoSync=()=>{if(window.MACTV14&&typeof window.MACTV14.sync==="function")return window.MACTV14.sync();return false};
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bind,{once:true});else bind();
 })();
 </script>
