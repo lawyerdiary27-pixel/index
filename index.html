@@ -3895,9 +3895,18 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
    form.action=url;
    form.target=frameName;
    form.style.display="none";
+   // Code.gs parsePostBody_() accepts form-urlencoded `payload`, but that
+   // payload must contain the COMPLETE POST envelope (action + folder + fileName + payload).
+   // The previous PC patch sent only the inner payload, which made Code.gs save an empty backup.
+   const envelope={
+     action:"backup",
+     folder:"MACT Legal Portal V14",
+     fileName:BACKUP_NAME,
+     payload:payload
+   };
    const input=document.createElement("textarea");
    input.name="payload";
-   input.value=JSON.stringify(payload);
+   input.value=JSON.stringify(envelope);
    form.appendChild(input);
    document.body.appendChild(frame);
    document.body.appendChild(form);
